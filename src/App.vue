@@ -4,10 +4,9 @@ import { useFetch } from '@vueuse/core';
 import { languages } from '@/languages';
 import JSZip from 'jszip';
 
-const locFile = 'localization.xml';
-
 const files = [
   'keywords.xml',
+  'localization.xml',
   'localization_advice.xml',
   'localization_camp.xml',
   'localization_camp_tentative.xml',
@@ -36,6 +35,7 @@ const files = [
   'localization_skills_tentative.xml',
   'localization_status.xml',
   'localization_status_additional.xml',
+  'localization_status_tentative.xml',
   'localization_steampage.xml',
   'localization_store.xml',
   'localization_story_additional.xml',
@@ -66,20 +66,20 @@ const xmls = ref<Record<string, Blob>>({});
 const parser = new DOMParser();
 const serializer = new XMLSerializer();
 
-const fixTranslation = (translation: Translation) => {
-  const parameterRegex = /\$[a-z]+\$/g;
-  const enParameters = translation.en.match(parameterRegex);
-  if (enParameters) {
-    let corrected = translation[lang.value];
-    enParameters.map(parameter => {
-      const regex = new RegExp(`\\${parameter}`, 'g');
-      if (!corrected.match(regex)) {
-        corrected = corrected.replace(parameterRegex, parameter);
-      }
-    });
-    translation[lang.value] = corrected;
-  }
-};
+// const fixTranslation = (translation: Translation) => {
+//   const parameterRegex = /\$[a-z]+\$/g;
+//   const enParameters = translation.en.match(parameterRegex);
+//   if (enParameters) {
+//     let corrected = translation[lang.value];
+//     enParameters.map(parameter => {
+//       const regex = new RegExp(`\\${parameter}`, 'g');
+//       if (!corrected.match(regex)) {
+//         corrected = corrected.replace(parameterRegex, parameter);
+//       }
+//     });
+//     translation[lang.value] = corrected;
+//   }
+// };
 
 const downloadBlob = (blob: Blob, fileName: string) => {
   const url = URL.createObjectURL(blob);
@@ -104,11 +104,12 @@ const download = () => {
 
   document.querySelectorAll('.strings div').forEach((el, index) => {
     let str = el.textContent || '';
+    str = str.replace(/ {2,}/g, ' ');
     const jsonObj = json.value[index];
     jsonObj[lang.value] = str.trim();
   });
   json.value.map(el => {
-    fixTranslation(el);
+    // fixTranslation(el);
     if (el.en && !el[lang.value]) {
       el[lang.value] = el.en;
     }
@@ -196,19 +197,6 @@ const upload = async ($event: Event) => {
 
       xmls.value = {};
 
-      const { data: locFileData } = await useFetch(
-        `/roguevoltage-localization/${locFile}`,
-      )
-        .get()
-        .text();
-      const locFileDoc: Document = parser.parseFromString(
-        String(locFileData.value),
-        'application/xml',
-      );
-      appendString(locFileDoc.querySelector('set'), '');
-
-      xmls.value[locFile] = createBlobXML(locFileDoc);
-
       for await (const fileName of files) {
         const { data } = await useFetch(
           `/roguevoltage-localization/${fileName}`,
@@ -219,6 +207,11 @@ const upload = async ($event: Event) => {
           String(data.value),
           'application/xml',
         );
+        if (fileName === 'localization.xml') {
+          appendString(doc.querySelector('set'), '');
+          xmls.value[fileName] = createBlobXML(doc);
+          continue;
+        }
         const sets = doc.documentElement.querySelectorAll('set');
         sets.forEach(set => {
           const traslatedObj = obj.find(
@@ -287,7 +280,7 @@ onMounted(async () => {
       if (en) {
         en = en.replace(
           /\$(.*?)\$/g,
-          '<span class="notranslate"> $$$1$$ </span>',
+          ' <span class="notranslate">$$$1$$</span> ',
         );
       }
       strings.value.push(en);
