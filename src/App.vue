@@ -145,6 +145,7 @@ const appendString = (set: Element | null, textContent: string) => {
 const createBlobXML = (doc: Document) => {
   let docString = serializer.serializeToString(doc);
   docString = docString.replace(/\s+xmlns(:\w+)?="[^"]*"/g, '');
+  docString = docString.replace(/&amp;/g, '&');
   return new Blob([docString], { type: 'application/xml' });
 };
 
